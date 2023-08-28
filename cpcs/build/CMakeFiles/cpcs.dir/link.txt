@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/cpcs.dir/main.c.o CMakeFiles/cpcs.dir/COM.c.o -o cpcs 
