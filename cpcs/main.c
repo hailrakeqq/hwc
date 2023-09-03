@@ -12,30 +12,34 @@ int main()
 
     char* result = executeSensorCommand();
     struct sensor* sensors = getSensorsArray(result);
-    printSensors(sensors);
-    free(sensors);
+    free(result);
 
-//    openCOMPort(&serialPort, portName);
-//    configureCOMPort(tty, serialPort);
+    openCOMPort(&serialPort, portName);
+    configureCOMPort(tty, serialPort);
 
-//    while(1){
-//        printf("enter what you want to do (x - exit; q - on/off green led; e - on/off red led): ");
-//        scanf(" %c", &todo);
-//
-//        switch (todo) {
-//            case 'x':
-//                closeConnection(serialPort);
-//                free(tty);
-//                exit(0);
-//            case 'q':
-//                dataToSend = "Q";
-//                sendData(serialPort, dataToSend);
-//                break;
-//            case 'e':
-//                dataToSend = "E";
-//                sendData(serialPort, dataToSend);
-//                break;
-//        }
-//        while (getchar() != '\n');
-//    }
+    while(1){
+        printf("enter what you want to do (x - exit; q - on/off green led; e - on/off red led): ");
+        scanf(" %c", &todo);
+
+        switch (todo) {
+            case 'x':
+               closeConnection(serialPort);
+               free(tty);
+               exit(0);
+            case 'q':
+               dataToSend = "Q";
+               sendData(serialPort, dataToSend);
+               break;
+            case 'e':
+               dataToSend = "E";
+               sendData(serialPort, dataToSend);
+               break;
+            case 's':
+                sendSensorData(serialPort, sensors);
+                printf("Sensor data was send to mcu");
+                free(sensors);
+                break;
+       }
+       while (getchar() != '\n');
+   }
 }

@@ -49,8 +49,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/hailrake/media/code/cpcs/cmake-build-debug",
-		"source" : "/home/hailrake/media/code/cpcs"
+		"build" : "/home/hailrake/media/code/hwc/cpcs/cmake-build-debug",
+		"source" : "/home/hailrake/media/code/hwc/cpcs"
 	},
 	"version" : 
 	{

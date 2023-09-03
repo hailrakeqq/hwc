@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "sensor.h": "c",
+        "com.h": "c",
+        "include.h": "c"
+    }
+}

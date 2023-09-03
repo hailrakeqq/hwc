@@ -35,6 +35,10 @@ void sendData(int serialPort, char *data){
     write(serialPort, data, strlen(data));
 }
 
+void sendSensorData(int serialPort, struct sensor *sensors){
+    write(serialPort, sensors, strlen(sensors));
+}
+
 void closeConnection(int serialPort){
     close(serialPort);
 }
