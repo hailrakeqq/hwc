@@ -36,7 +36,7 @@ void sendData(int serialPort, char *data){
 }
 
 void sendSensorData(int serialPort, struct sensor *sensors){
-    write(serialPort, sensors, strlen(sensors));
+    write(serialPort, sensors, sizeof(struct sensor));
 }
 
 void closeConnection(int serialPort){

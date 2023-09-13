@@ -9,7 +9,7 @@ d2 - sda
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
-
+#include <FS.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
@@ -42,30 +42,21 @@ struct WeatherData
 
 struct Sensor
 {
-  char* name;
+  char name[25];
   float temp;
   uint16_t fanSpeed;
   float ppt;
 };
 
-Sensor moqSensor[3];
-
-void initializeSensor(Sensor& sensor, const char* name, float fanSpeed, float ppt, float temp) {
-    strncpy(sensor.name, name, sizeof(sensor.name) - 1);
-    sensor.fanSpeed = fanSpeed;
-    sensor.ppt = ppt;
-    sensor.temp = temp;
-}
+//TODO: доделать что бы можно было переключаться между елементами массива структур
+//TODO: Связать железяку с пк что бы оно автоматически отправляло данные, а микроконтроллер их получал
 
 void setup()
 {
+  SPIFFS.begin();
   Serial.begin(115200);
   WiFi.begin(SSID, PASSWORD);
 
-  // initializeSensor(moqSensor[0], "sensor1", 1150, 35.2, 39.9);
-  // initializeSensor(moqSensor[1], "sensor2", 1200, 36.5, 38.0);
-  // initializeSensor(moqSensor[2], "sensor3", 1100, 34.8, 40.5);
-  
   pinMode(TEST_LED, OUTPUT);
   pinMode(14, INPUT_PULLUP);
   pinMode(12, INPUT_PULLUP);
@@ -80,18 +71,29 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);
   }
-
+  SPIFFS.remove("/data.txt");
   Serial.println("Connected to WiFi");
 }
 
 void drawHardwareDisplay(Sensor &sensors){
+  if(currentSensor >= sensorCount){
+    currentSensor = 0;
+  } else {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
 
     display.print(sensors.name);
+
+    display.setCursor(90, 0);
+    display.print('(');
+    display.print(currentSensor + 1);
+    display.print("/");
+    display.print(sensorCount);
+    display.print(')');
     display.print('\n');
+
     display.print("Temp: ");
     display.print(sensors.temp);
     display.print('\n');
@@ -104,6 +106,7 @@ void drawHardwareDisplay(Sensor &sensors){
     display.print(sensors.fanSpeed);
 
     display.display();
+  }
 }
 
 void drawWeatherDisplay(const WeatherData& weather){
@@ -174,10 +177,14 @@ void handleButtonsEvent() {
   
   if (digitalRead(GO_TO_NEXT_SENSOR_BTN) == LOW && millis() - btnTimer > 100) {
     btnTimer = millis();
-    if (currentSensor < sensorCount)
-      currentSensor++;
-    else
-      currentSensor = 0;
+    if(isHardwareMonitor){
+      if (currentSensor < sensorCount)
+        currentSensor++;
+      else
+        currentSensor = 0;
+    } else {
+      return;
+    }
 }
   if(digitalRead(CHANGE_STATE_BTN) == LOW && millis() - btnTimer > 100){
     btnTimer = millis();
@@ -200,27 +207,69 @@ const long interval = 60000;
 const long buttonCheckInterval = 100; 
 unsigned long previousButtonMillis = 0;
 
-void loop() {
-  unsigned long currentMillis = millis();
-  unsigned long currentButtonMillis = millis();
+//TODO: режими змінюються повільно, потрібно задебажити щоб зрозуміти де саме працює повільно
+String data = "";
 
-  if (currentButtonMillis - previousButtonMillis >= buttonCheckInterval) {
-    previousButtonMillis = currentButtonMillis;
-    handleButtonsEvent();
+void loop(){
+#pragma region test
+if (Serial.available()) {
+  String incomingString = "";
+  while (Serial.available()) {
+    incomingString = Serial.readStringUntil('\n'); // Читаем символ из COM-порта
+    // data += incomingString; // Добавляем символ к строке
   }
 
-  if (isWeatherMonitor) {
-    digitalWrite(TEST_LED, LOW);
-    if (currentMillis - previousMillis >= interval) {
-      drawWeatherDisplay(GetWeatherData());
-      previousMillis = currentMillis;
-    }
-  }
-  if(isHardwareMonitor){
-    digitalWrite(TEST_LED, HIGH);
-    if (currentMillis - previousMillis >= interval) {
-      drawHardwareDisplay(moqSensor[currentSensor]);
-      previousMillis = currentMillis;
-    }
-  }
+  // char *result = (char *)malloc(data.length());
+  // data.toCharArray(result, data.length());
+  char *result = (char *)malloc(incomingString.length());
+  incomingString.toCharArray(result, incomingString.length());
+  Serial.write(result);
+  Serial.write('\n');
+  free(result);
+
+  // char *arr = (char *)malloc(100);
+  // String receivedData = Serial.readStringUntil('\n'); // Чтение строки до символа '\n'
+
+  // Serial.write("Received data: ");
+  // receivedData.toCharArray(arr, 100);
+  // Serial.write(arr); // Вывод считанных данных в Serial Monitor
+  // free(arr);
+}
+#pragma endregion
+
+  // struct Sensor receivedSensor;
+  // char buffer[sizeof(Sensor)];
+  // if (Serial.available() >= sizeof(Sensor))
+  // {
+  //   // Прочитать данные из COM-порта и сохранить их в структуру
+  //    Serial.readBytes(buffer, sizeof(Sensor));
+    
+  //   // Вывести содержимое буфера на экран
+  //   Serial.write(buffer, sizeof(Sensor));
+
+  //   // Serial.readBytes((char *)&receivedSensor, sizeof(Sensor));
+  //   // drawHardwareDisplay(receivedSensor);
+  // }
+#pragma region mainWork
+  // unsigned long currentMillis = millis();
+
+  // if (currentMillis - previousButtonMillis >= buttonCheckInterval) {
+  //   previousButtonMillis = currentMillis;
+  //   handleButtonsEvent();
+  // }
+
+  // if (currentMillis - previousMillis >= interval) {
+  //   previousMillis = currentMillis;
+    
+  //   if (isWeatherMonitor) {
+  //     digitalWrite(TEST_LED, LOW);
+  //     drawWeatherDisplay(GetWeatherData());
+  //   } else if (isHardwareMonitor) {
+  //     digitalWrite(TEST_LED, HIGH);
+  //     Serial.print("===============\nBegin drawing display\n==================\n");
+  //     drawHardwareDisplay(moqSensor[currentSensor]);
+  //     Serial.print("===============\nEnd drawing display\n==================\n");
+  //   }
+  // }
+#pragma endregion
 }

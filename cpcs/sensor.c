@@ -31,12 +31,10 @@ char* executeSensorCommand() {
     return result;
 }
 
-int length(struct sensor* sensors) {
+int getSensorArrayLength(struct sensor* sensors) {
     int length = 0;
-    while(sensors->name != NULL){
-        sensors++;
+    while (sensors[length].name[0] != '\0')
         length++;
-    }
 
     return length;
 }
@@ -152,6 +150,28 @@ struct sensor* getSensorsArray(char* input) {
     json_object_put(root);
 
     return sensors;
+}
+
+char* sensorsToString(struct sensor* sensors){
+    int sensorCount = getSensorArrayLength(sensors);
+    char* result = (char*)malloc(1);
+    if (result == NULL) {
+        perror("An error occurred while allocating memory");
+        exit(1);
+    }
+    result[0] = '\0';
+
+    for (size_t i = 0; i < sensorCount; i++) {
+        char temp[100];
+        snprintf(temp, sizeof(temp), "%s;%.2f;%d;%.2f\n", sensors[i].name, sensors[i].temp, sensors[i].fanSpeed, sensors[i].ppt);
+        result = (char*)realloc(result, strlen(result) + strlen(temp) + 1);
+        if (result == NULL) {
+            perror("An error occurred while reallocating memory");
+            exit(1);
+        }
+        strcat(result, temp);
+    }
+    return result;
 }
 
 void printSensors(struct sensor sensors[]){

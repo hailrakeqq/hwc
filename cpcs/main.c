@@ -5,7 +5,7 @@
 int main()
 {
     int serialPort;
-    char *portName = "/dev/ttyUSB0";
+    char *portName = "/dev/ttyUSB0";//"/dev/ttyUSB0"
     char *dataToSend = "";
     struct termios *tty;
     char todo;
@@ -31,8 +31,10 @@ int main()
                sendData(serialPort, dataToSend);
                break;
             case 'e':
-               dataToSend = "E";
-               sendData(serialPort, dataToSend);
+//               dataToSend = "nvme-pci-0800;temp: 36.5;PPT: 35 \namdgpu;temp: 60.4;PPT: 40 ";
+//               sendData(serialPort, dataToSend);
+                printf(sensorsToString(sensors));
+                free(sensors);
                break;
             case 's':
                 sendSensorData(serialPort, sensors);
