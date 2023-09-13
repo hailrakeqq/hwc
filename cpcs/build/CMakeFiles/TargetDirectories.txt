@@ -1,3 +1,0 @@
-/home/hailrake/media/code/cpcs/build/CMakeFiles/cpcs.dir
-/home/hailrake/media/code/cpcs/build/CMakeFiles/edit_cache.dir
-/home/hailrake/media/code/cpcs/build/CMakeFiles/rebuild_cache.dir

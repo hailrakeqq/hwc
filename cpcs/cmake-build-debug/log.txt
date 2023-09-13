@@ -1,8 +1,0 @@
-Name: %’¯b
-Temperature: 37.85
-Fan Speed: 0
-PPT: 0.00
-Name: amdgpu-pci-0100
-Temperature: 47.00
-Fan Speed: 1147
-PPT: 30.22
