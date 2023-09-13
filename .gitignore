@@ -1,0 +1,6 @@
+.vscode/*
+/core/hwc/.vscode/*
+/core/hwc/src/config.h
+/cpcs/.idea/*
+/cpcs/build/*
+/cpcs/cmake-build-debug/*
