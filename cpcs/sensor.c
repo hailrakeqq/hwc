@@ -163,7 +163,7 @@ char* sensorsToString(struct sensor* sensors){
 
     for (size_t i = 0; i < sensorCount; i++) {
         char temp[100];
-        snprintf(temp, sizeof(temp), "%s;%.2f;%d;%.2f\n", sensors[i].name, sensors[i].temp, sensors[i].fanSpeed, sensors[i].ppt);
+        snprintf(temp, sizeof(temp), "%s;%.2f;%d;%.2f;|", sensors[i].name, sensors[i].temp, sensors[i].fanSpeed, sensors[i].ppt);
         result = (char*)realloc(result, strlen(result) + strlen(temp) + 1);
         if (result == NULL) {
             perror("An error occurred while reallocating memory");
@@ -174,15 +174,4 @@ char* sensorsToString(struct sensor* sensors){
     return result;
 }
 
-void printSensors(struct sensor sensors[]){
-    for (int i = 0; i < 2; i++) {
-        printf("Sensor %d:\n", i + 1);
-        printf("Name: %s\n", sensors[i].name);
-        printf("Temperature: %.1f°C\n", sensors[i].temp);
-        printf("Fan Speed: %u RPM\n", sensors[i].fanSpeed);
-        printf("PPT: %.2f W\n", sensors[i].ppt);
-        printf("\n");
-        free(sensors[i].name);
-    }
-}
 

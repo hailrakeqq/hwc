@@ -12,8 +12,14 @@ d2 - sda
 #include <FS.h>
 #include <Wire.h>
 #include <SPI.h>
+#include <vector>
+#include <string>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
 #include "config.h"
 
 #define SCREEN_WIDTH 128
@@ -28,7 +34,7 @@ const String apiToken = API_TOKEN;
 
 boolean isHardwareMonitor = false;
 boolean isWeatherMonitor = true;
-int sensorCount = 3;
+int sensorCount = 0;
 int currentSensor = 0;
 
 struct WeatherData
@@ -42,15 +48,16 @@ struct WeatherData
 
 struct Sensor
 {
-  char name[25];
+  String name;
   float temp;
   uint16_t fanSpeed;
   float ppt;
 };
 
+std::vector<Sensor> sensors;
+
 void setup()
 {
-  SPIFFS.begin();
   Serial.begin(115200);
   WiFi.begin(SSID, PASSWORD);
 
@@ -68,42 +75,45 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);
   }
-  SPIFFS.remove("/data.txt");
+
   Serial.println("Connected to WiFi");
+  display.clearDisplay();
+  display.display();
 }
 
-void drawHardwareDisplay(Sensor &sensors){
-  if(currentSensor >= sensorCount){
+void drawHardwareDisplay(Sensor &sensor){
+  if(currentSensor >= sensorCount)
     currentSensor = 0;
-  } else {
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
+  
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.print(sensor.name);
+  display.setCursor(90, 0);
+  display.print('(');
+  display.print(currentSensor + 1);
+  display.print("/");
+  display.print(sensorCount);
+  display.print(')');
+  display.print('\n');
+  display.print("Temp: ");
+  display.print(sensor.temp);
+  display.print('\n');
+  display.print("PPT: ");
+  display.print(sensor.ppt); 
+  display.print('\n');
+  display.print("Fan Speed: ");
+  display.print(sensor.fanSpeed);
+  display.display();
+}
 
-    display.print(sensors.name);
-
-    display.setCursor(90, 0);
-    display.print('(');
-    display.print(currentSensor + 1);
-    display.print("/");
-    display.print(sensorCount);
-    display.print(')');
-    display.print('\n');
-
-    display.print("Temp: ");
-    display.print(sensors.temp);
-    display.print('\n');
-
-    display.print("PPT: ");
-    display.print(sensors.ppt); 
-    display.print('\n');
-
-    display.print("Fan Speed: ");
-    display.print(sensors.fanSpeed);
-
-    display.display();
-  }
+void drawNoSensorDisplay(){
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.print("Sensors not found");
 }
 
 void drawWeatherDisplay(const WeatherData& weather){
@@ -136,13 +146,12 @@ WeatherData GetWeatherData() {
     WiFiClient wifiClient;
     DynamicJsonDocument doc(8192);
 
-    http.begin(wifiClient,"http://api.weatherapi.com/v1/current.json?key=" + apiToken +"&q=Kiev&aqi=no");
+    http.begin(wifiClient,"http://api.weatherapi.com/v1/current.json?key=" + apiToken +"&q=Kyiv&aqi=no");
 
     int httpResponseCode = http.GET();
 
     if (httpResponseCode == HTTP_CODE_OK) {
       String response = http.getString();
-      Serial.println(response);
 
       DeserializationError error = deserializeJson(doc, response);
       if(error){
@@ -170,7 +179,7 @@ WeatherData GetWeatherData() {
 }
 
 void handleButtonsEvent() {
-  uint32_t btnTimer = 0;
+  static uint32_t btnTimer = 0;
   
   if (digitalRead(GO_TO_NEXT_SENSOR_BTN) == LOW && millis() - btnTimer > 100) {
     btnTimer = millis();
@@ -182,91 +191,104 @@ void handleButtonsEvent() {
     } else {
       return;
     }
-}
+  }
   if(digitalRead(CHANGE_STATE_BTN) == LOW && millis() - btnTimer > 100){
     btnTimer = millis();
-    if(isWeatherMonitor){
+    if(isWeatherMonitor) {
       isWeatherMonitor = false;
       isHardwareMonitor = true;
-      Serial.println("hardware monitor on");
-    }
-    else
-    {
+    } else {
       isWeatherMonitor = true;
       isHardwareMonitor = false;
-      Serial.println("Weather monitor on");
     }
   }
 }
 
-unsigned long previousMillis = 0;
-const long interval = 60000; 
 const long buttonCheckInterval = 100; 
 unsigned long previousButtonMillis = 0;
+unsigned long lastApiRequestTime = 0;
+const unsigned long apiRequestInterval = 60000; 
+bool isApiRequestPending = false; 
 
-//TODO: режими змінюються повільно, потрібно задебажити щоб зрозуміти де саме працює повільно
-String data = "";
+std::vector<Sensor> getParsedSensorVector(String input){
+    std::vector<Sensor> sensors;
+    int startPos = 0;
+    int endPos = input.indexOf('|', startPos);
 
-void loop(){
-#pragma region test
-if (Serial.available()) {
-  String incomingString = "";
-  while (Serial.available()) {
-    incomingString = Serial.readStringUntil('\n'); // Читаем символ из COM-порта
-    // data += incomingString; // Добавляем символ к строке
+    while (endPos != -1)
+    {
+        Sensor sensor;
+        String sensorData = input.substring(startPos, endPos);
+        int semicolonPos = sensorData.indexOf(';');
+
+        if (semicolonPos != -1)
+        {
+            sensor.name = sensorData.substring(0, semicolonPos);
+            sensorData.remove(0, semicolonPos + 1);
+
+            sensor.temp = sensorData.toFloat();
+            semicolonPos = sensorData.indexOf(';');
+
+            if (semicolonPos != -1)
+            {
+                sensorData.remove(0, semicolonPos + 1);
+                sensor.fanSpeed = sensorData.toInt();
+                semicolonPos = sensorData.indexOf(';');
+
+                if (semicolonPos != -1)
+                {
+                    sensorData.remove(0, semicolonPos + 1);
+                    sensor.ppt = sensorData.toFloat();
+                    sensors.push_back(sensor);
+                }
+            }
+        }
+
+        startPos = endPos + 1;
+        endPos = input.indexOf('|', startPos);
+    }
+
+    return sensors;
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousButtonMillis >= buttonCheckInterval) {
+    previousButtonMillis = currentMillis;
+    handleButtonsEvent();
   }
 
-  // char *result = (char *)malloc(data.length());
-  // data.toCharArray(result, data.length());
-  char *result = (char *)malloc(incomingString.length());
-  incomingString.toCharArray(result, incomingString.length());
-  Serial.write(result);
-  Serial.write('\n');
-  free(result);
+  if (currentMillis - lastApiRequestTime >= apiRequestInterval) {
+    isApiRequestPending = true;
+    lastApiRequestTime = currentMillis; 
+  }
 
-  // char *arr = (char *)malloc(100);
-  // String receivedData = Serial.readStringUntil('\n'); // Чтение строки до символа '\n'
+  if (isWeatherMonitor) {
+    digitalWrite(TEST_LED, LOW);
+    if(isApiRequestPending){
+      drawWeatherDisplay(GetWeatherData());
+      isApiRequestPending = false;
+    }
+  } else if (isHardwareMonitor) {
+    digitalWrite(TEST_LED, HIGH);
+    if(Serial.available()) {
+      String incomingString = Serial.readStringUntil('\n'); 
+      char str[incomingString.length() + 1];
 
-  // Serial.write("Received data: ");
-  // receivedData.toCharArray(arr, 100);
-  // Serial.write(arr); // Вывод считанных данных в Serial Monitor
-  // free(arr);
+      incomingString.toCharArray(str, sizeof(str));
+
+      Serial.write(str);
+
+      sensors = getParsedSensorVector(str);
+      sensorCount = sensors.capacity();
+    }
+  
+    if(!sensors.empty())
+      drawHardwareDisplay(sensors[currentSensor]);
+    else
+      drawNoSensorDisplay();
+  }
 }
-#pragma endregion
 
-  // struct Sensor receivedSensor;
-  // char buffer[sizeof(Sensor)];
-  // if (Serial.available() >= sizeof(Sensor))
-  // {
-  //   // Прочитать данные из COM-порта и сохранить их в структуру
-  //    Serial.readBytes(buffer, sizeof(Sensor));
-    
-  //   // Вывести содержимое буфера на экран
-  //   Serial.write(buffer, sizeof(Sensor));
 
-  //   // Serial.readBytes((char *)&receivedSensor, sizeof(Sensor));
-  //   // drawHardwareDisplay(receivedSensor);
-  // }
-#pragma region mainWork
-  // unsigned long currentMillis = millis();
-
-  // if (currentMillis - previousButtonMillis >= buttonCheckInterval) {
-  //   previousButtonMillis = currentMillis;
-  //   handleButtonsEvent();
-  // }
-
-  // if (currentMillis - previousMillis >= interval) {
-  //   previousMillis = currentMillis;
-    
-  //   if (isWeatherMonitor) {
-  //     digitalWrite(TEST_LED, LOW);
-  //     drawWeatherDisplay(GetWeatherData());
-  //   } else if (isHardwareMonitor) {
-  //     digitalWrite(TEST_LED, HIGH);
-  //     Serial.print("===============\nBegin drawing display\n==================\n");
-  //     drawHardwareDisplay(moqSensor[currentSensor]);
-  //     Serial.print("===============\nEnd drawing display\n==================\n");
-  //   }
-  // }
-#pragma endregion
-}

@@ -16,7 +16,6 @@ struct sensor* initSensor(int sensorCount);
 char* executeSensorCommand();
 struct sensor* getSensorsArray(char* input);
 char* sensorsToString(struct sensor* sensors);
-void printSensors(struct sensor *sensors);
 int getSensorArrayLength(struct sensor* sensors);
 
 #endif

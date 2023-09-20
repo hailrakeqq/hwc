@@ -1,47 +1,33 @@
 #include "include.h"
 #include "COM.h"
 #include "sensor.h"
+#include <libudev.h>
 
-int main()
+
+int main(int argc, char* argv[])
 {
     int serialPort;
-    char *portName = "/dev/ttyUSB0";//"/dev/ttyUSB0"
-    char *dataToSend = "";
+    char *portName = argv[1];
     struct termios *tty;
-    char todo;
 
-    char* result = executeSensorCommand();
-    struct sensor* sensors = getSensorsArray(result);
-    free(result);
+    while (1) {
+        openCOMPort(&serialPort, portName);
+        configureCOMPort(tty, serialPort);
 
-    openCOMPort(&serialPort, portName);
-    configureCOMPort(tty, serialPort);
+        if (serialPort != -1) {
+            printf("Device connected to %s\n", portName);
+            char* result = executeSensorCommand();
+            struct sensor* sensors = getSensorsArray(result);
+            free(result);
 
-    while(1){
-        printf("enter what you want to do (x - exit; q - on/off green led; e - on/off red led): ");
-        scanf(" %c", &todo);
+            char *dataToSend = sensorsToString(sensors);
+            sendData(serialPort, dataToSend);
+            printf("data was sended to MCU.");
+            free(dataToSend);
+        } else {
+            printf("Device disconnected from %s\n", portName);
+        }
 
-        switch (todo) {
-            case 'x':
-               closeConnection(serialPort);
-               free(tty);
-               exit(0);
-            case 'q':
-               dataToSend = "Q";
-               sendData(serialPort, dataToSend);
-               break;
-            case 'e':
-//               dataToSend = "nvme-pci-0800;temp: 36.5;PPT: 35 \namdgpu;temp: 60.4;PPT: 40 ";
-//               sendData(serialPort, dataToSend);
-                printf(sensorsToString(sensors));
-                free(sensors);
-               break;
-            case 's':
-                sendSensorData(serialPort, sensors);
-                printf("Sensor data was send to mcu");
-                free(sensors);
-                break;
-       }
-       while (getchar() != '\n');
-   }
+        sleep(5);
+    }
 }
