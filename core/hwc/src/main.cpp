@@ -24,9 +24,8 @@ d2 - sda
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
-#define TEST_LED 15 // it exist only for test it should be deleted
-#define CHANGE_STATE_BTN 14
-#define GO_TO_NEXT_SENSOR_BTN 12
+#define CHANGE_STATE_BTN D5
+#define GO_TO_NEXT_SENSOR_BTN D6
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -61,9 +60,8 @@ void setup()
   Serial.begin(115200);
   WiFi.begin(SSID, PASSWORD);
 
-  pinMode(TEST_LED, OUTPUT);
-  pinMode(14, INPUT_PULLUP);
-  pinMode(12, INPUT_PULLUP);
+  pinMode(GO_TO_NEXT_SENSOR_BTN, INPUT_PULLUP);
+  pinMode(CHANGE_STATE_BTN, INPUT_PULLUP);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -265,13 +263,11 @@ void loop() {
   }
 
   if (isWeatherMonitor) {
-    digitalWrite(TEST_LED, LOW);
     if(isApiRequestPending){
       drawWeatherDisplay(GetWeatherData());
       isApiRequestPending = false;
     }
   } else if (isHardwareMonitor) {
-    digitalWrite(TEST_LED, HIGH);
     if(Serial.available()) {
       String incomingString = Serial.readStringUntil('\n'); 
       char str[incomingString.length() + 1];
