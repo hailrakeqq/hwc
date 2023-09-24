@@ -53,31 +53,8 @@ struct Sensor
   float ppt;
 };
 
+WeatherData currentWeatherData;
 std::vector<Sensor> sensors;
-
-void setup()
-{
-  Serial.begin(115200);
-  WiFi.begin(SSID, PASSWORD);
-
-  pinMode(GO_TO_NEXT_SENSOR_BTN, INPUT_PULLUP);
-  pinMode(CHANGE_STATE_BTN, INPUT_PULLUP);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
-
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // 0x3C is the I2C address of the display
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
-  }
-
-  Serial.println("Connected to WiFi");
-  display.clearDisplay();
-  display.display();
-}
 
 void drawHardwareDisplay(Sensor &sensor){
   if(currentSensor >= sensorCount)
@@ -249,6 +226,31 @@ std::vector<Sensor> getParsedSensorVector(String input){
     return sensors;
 }
 
+void setup()
+{
+  Serial.begin(115200);
+  WiFi.begin(SSID, PASSWORD);
+
+  pinMode(GO_TO_NEXT_SENSOR_BTN, INPUT_PULLUP);
+  pinMode(CHANGE_STATE_BTN, INPUT_PULLUP);
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // 0x3C is the I2C address of the display
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+
+  Serial.println("Connected to WiFi");
+  display.clearDisplay();
+  display.display();
+  currentWeatherData = GetWeatherData();
+}
+
 void loop() {
   unsigned long currentMillis = millis();
 
@@ -262,11 +264,13 @@ void loop() {
     lastApiRequestTime = currentMillis; 
   }
 
+  if(isApiRequestPending){
+    currentWeatherData = GetWeatherData();
+    isApiRequestPending = false;
+  }
+
   if (isWeatherMonitor) {
-    if(isApiRequestPending){
-      drawWeatherDisplay(GetWeatherData());
-      isApiRequestPending = false;
-    }
+    drawWeatherDisplay(currentWeatherData);
   } else if (isHardwareMonitor) {
     if(Serial.available()) {
       String incomingString = Serial.readStringUntil('\n'); 
